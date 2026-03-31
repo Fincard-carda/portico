@@ -172,9 +172,18 @@ internal static class MerchantEndpoints
                 return Results.Forbid();
             }
 
-            var intents = await dbContext.PaymentIntents
+            var accessContexts = GetMerchantAccessContexts(context.User, merchantId.Value);
+            if (accessContexts.Count == 0)
+            {
+                return Results.Forbid();
+            }
+
+            var intents = await ApplyPaymentIntentScope(
+                    dbContext.PaymentIntents
+                        .AsNoTracking()
+                        .Where(intent => intent.MerchantId == merchantId.Value),
+                    accessContexts)
                 .AsNoTracking()
-                .Where(intent => intent.MerchantId == merchantId.Value)
                 .OrderByDescending(intent => intent.CreatedAt)
                 .Select(intent => new PaymentIntentDto(
                     intent.Id,
@@ -207,9 +216,17 @@ internal static class MerchantEndpoints
                 return Results.Forbid();
             }
 
-            var intent = await dbContext.PaymentIntents
-                .AsNoTracking()
-                .Where(item => item.Id == intentId && item.MerchantId == merchantId.Value)
+            var accessContexts = GetMerchantAccessContexts(context.User, merchantId.Value);
+            if (accessContexts.Count == 0)
+            {
+                return Results.Forbid();
+            }
+
+            var intent = await ApplyPaymentIntentScope(
+                    dbContext.PaymentIntents
+                        .AsNoTracking()
+                        .Where(item => item.Id == intentId && item.MerchantId == merchantId.Value),
+                    accessContexts)
                 .Select(item => new PaymentIntentDetailDto(
                     item.Id,
                     item.MerchantId,
@@ -427,10 +444,21 @@ internal static class MerchantEndpoints
                 return Results.Forbid();
             }
 
+            var accessContexts = GetMerchantAccessContexts(context.User, merchantId.Value);
+            if (accessContexts.Count == 0)
+            {
+                return Results.Forbid();
+            }
+
+            var scopedIntents = ApplyPaymentIntentScope(
+                dbContext.PaymentIntents
+                    .AsNoTracking()
+                    .Where(intent => intent.MerchantId == merchantId.Value),
+                accessContexts);
+
             var payments = await (
                 from payment in dbContext.PaymentRecords.AsNoTracking()
-                join intent in dbContext.PaymentIntents.AsNoTracking() on payment.PaymentIntentId equals intent.Id
-                where intent.MerchantId == merchantId.Value
+                join intent in scopedIntents on payment.PaymentIntentId equals intent.Id
                 orderby payment.CreatedAt descending
                 select new PaymentDto(
                     payment.Id,
@@ -460,10 +488,22 @@ internal static class MerchantEndpoints
                 return Results.Forbid();
             }
 
+            var accessContexts = GetMerchantAccessContexts(context.User, merchantId.Value);
+            if (accessContexts.Count == 0)
+            {
+                return Results.Forbid();
+            }
+
+            var scopedIntents = ApplyPaymentIntentScope(
+                dbContext.PaymentIntents
+                    .AsNoTracking()
+                    .Where(intent => intent.MerchantId == merchantId.Value),
+                accessContexts);
+
             var payment = await (
                 from record in dbContext.PaymentRecords.AsNoTracking()
-                join intent in dbContext.PaymentIntents.AsNoTracking() on record.PaymentIntentId equals intent.Id
-                where record.Id == paymentId && intent.MerchantId == merchantId.Value
+                join intent in scopedIntents on record.PaymentIntentId equals intent.Id
+                where record.Id == paymentId
                 select new PaymentDetailDto(
                     record.Id,
                     intent.Id,
@@ -495,7 +535,52 @@ internal static class MerchantEndpoints
                 return Results.Forbid();
             }
 
+            var accessContexts = GetMerchantAccessContexts(context.User, merchantId.Value);
+            if (accessContexts.Count == 0)
+            {
+                return Results.Forbid();
+            }
+
             var today = DateOnly.FromDateTime(DateTime.UtcNow);
+            if (!HasFullMerchantAccess(accessContexts))
+            {
+                var scopedIntents = ApplyPaymentIntentScope(
+                    dbContext.PaymentIntents
+                        .AsNoTracking()
+                        .Where(intent => intent.MerchantId == merchantId.Value),
+                    accessContexts);
+
+                var successPayments = await (
+                    from payment in dbContext.PaymentRecords.AsNoTracking()
+                    join intent in scopedIntents on payment.PaymentIntentId equals intent.Id
+                    where payment.Status == PaymentRecordStatus.Succeeded
+                    select payment.ProcessedAmountMinor ?? intent.AmountMinor)
+                    .ToArrayAsync(cancellationToken);
+
+                var failedCount = await (
+                    from payment in dbContext.PaymentRecords.AsNoTracking()
+                    join intent in scopedIntents on payment.PaymentIntentId equals intent.Id
+                    where payment.Status == PaymentRecordStatus.Failed
+                    select payment.Id)
+                    .CountAsync(cancellationToken);
+
+                var pendingCount = await scopedIntents
+                    .Where(intent => intent.Status == PaymentIntentStatus.Pending || intent.Status == PaymentIntentStatus.Active)
+                    .CountAsync(cancellationToken);
+
+                var totalSuccessAmountMinor = successPayments.Sum();
+                var averageScoped = successPayments.Length == 0
+                    ? 0
+                    : totalSuccessAmountMinor / successPayments.Length;
+
+                return Results.Ok(new DashboardSummaryDto(
+                    successPayments.Length,
+                    failedCount,
+                    pendingCount,
+                    totalSuccessAmountMinor,
+                    averageScoped));
+            }
+
             var summary = await dbContext.DashboardSummaryProjections
                 .AsNoTracking()
                 .FirstOrDefaultAsync(item => item.MerchantId == merchantId.Value && item.BusinessDate == today, cancellationToken);
@@ -554,6 +639,30 @@ internal static class MerchantEndpoints
             .SelectMany(item => item.TerminalIds)
             .Distinct()
             .ToArray();
+    }
+
+    private static IQueryable<PaymentIntent> ApplyPaymentIntentScope(
+        IQueryable<PaymentIntent> query,
+        IReadOnlyCollection<MerchantAccessContext> accessContexts)
+    {
+        if (HasFullMerchantAccess(accessContexts))
+        {
+            return query;
+        }
+
+        var terminalIds = GetScopedTerminalIds(accessContexts);
+        if (terminalIds.Count > 0)
+        {
+            return query.Where(intent => terminalIds.Contains(intent.TerminalId));
+        }
+
+        var branchIds = GetScopedBranchIds(accessContexts);
+        if (branchIds.Count > 0)
+        {
+            return query.Where(intent => branchIds.Contains(intent.BranchId));
+        }
+
+        return query.Where(_ => false);
     }
 
     private static bool IsAuthorizedForPaymentScope(
