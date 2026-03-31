@@ -85,7 +85,9 @@ public sealed class DashboardProjectionService(PorticoDbContext dbContext) : IDa
     }
 }
 
-public sealed class PaymentIntentLifecycleService(PorticoDbContext dbContext) : IPaymentIntentLifecycleService
+public sealed class PaymentIntentLifecycleService(
+    PorticoDbContext dbContext,
+    IIntegrationOutboxService integrationOutboxService) : IPaymentIntentLifecycleService
 {
     public async Task<IReadOnlyCollection<ExpiredPaymentIntentResult>> ExpireDueIntentsAsync(CancellationToken cancellationToken)
     {
@@ -105,6 +107,22 @@ public sealed class PaymentIntentLifecycleService(PorticoDbContext dbContext) : 
         {
             intent.Status = PaymentIntentStatus.Expired;
             intent.UpdatedAt = now;
+
+            integrationOutboxService.Enqueue(
+                PorticoIntegrationMessageTypes.PorticoPaymentIntentExpired,
+                intent.Id.ToString(),
+                intent.IntentReference,
+                new
+                {
+                    intentId = intent.Id,
+                    intentReference = intent.IntentReference,
+                    merchantId = intent.MerchantId,
+                    branchId = intent.BranchId,
+                    terminalId = intent.TerminalId,
+                    status = intent.Status.ToString(),
+                    occurredAt = now
+                },
+                now);
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);

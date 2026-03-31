@@ -20,6 +20,8 @@ public static class PersistenceServiceCollectionExtensions
         services.AddScoped<IDashboardProjectionService, DashboardProjectionService>();
         services.AddScoped<IPaymentIntentLifecycleService, PaymentIntentLifecycleService>();
         services.AddScoped<ICitadelPaymentEventProcessor, CitadelPaymentEventProcessor>();
+        services.AddScoped<IIntegrationInboxService, IntegrationInboxService>();
+        services.AddScoped<IIntegrationOutboxService, IntegrationOutboxService>();
 
         return services;
     }
@@ -38,6 +40,8 @@ public sealed class PorticoDbContext(DbContextOptions<PorticoDbContext> options)
     public DbSet<PaymentRecord> PaymentRecords => Set<PaymentRecord>();
     public DbSet<PaymentStatusHistory> PaymentStatusHistory => Set<PaymentStatusHistory>();
     public DbSet<DashboardSummaryProjection> DashboardSummaryProjections => Set<DashboardSummaryProjection>();
+    public DbSet<IntegrationInboxMessage> IntegrationInboxMessages => Set<IntegrationInboxMessage>();
+    public DbSet<IntegrationOutboxMessage> IntegrationOutboxMessages => Set<IntegrationOutboxMessage>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -143,6 +147,33 @@ public sealed class PorticoDbContext(DbContextOptions<PorticoDbContext> options)
         {
             entity.ToTable("dashboard_summary_projections");
             entity.HasKey(item => new { item.MerchantId, item.BusinessDate });
+        });
+
+        modelBuilder.Entity<IntegrationInboxMessage>(entity =>
+        {
+            entity.ToTable("integration_inbox_messages");
+            entity.HasKey(item => item.Id);
+            entity.Property(item => item.MessageId).HasMaxLength(64);
+            entity.Property(item => item.MessageType).HasMaxLength(128);
+            entity.Property(item => item.RoutingKey).HasMaxLength(128);
+            entity.Property(item => item.CorrelationId).HasMaxLength(128);
+            entity.Property(item => item.LastError).HasMaxLength(2048);
+            entity.HasIndex(item => item.MessageId).IsUnique();
+            entity.HasIndex(item => item.ProcessedAt);
+        });
+
+        modelBuilder.Entity<IntegrationOutboxMessage>(entity =>
+        {
+            entity.ToTable("integration_outbox_messages");
+            entity.HasKey(item => item.Id);
+            entity.Property(item => item.MessageId).HasMaxLength(64);
+            entity.Property(item => item.MessageType).HasMaxLength(128);
+            entity.Property(item => item.RoutingKey).HasMaxLength(128);
+            entity.Property(item => item.AggregateId).HasMaxLength(128);
+            entity.Property(item => item.CorrelationId).HasMaxLength(128);
+            entity.Property(item => item.LastError).HasMaxLength(2048);
+            entity.HasIndex(item => item.MessageId).IsUnique();
+            entity.HasIndex(item => item.PublishedAt);
         });
     }
 }

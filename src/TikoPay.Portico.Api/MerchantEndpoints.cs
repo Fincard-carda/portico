@@ -253,6 +253,7 @@ internal static class MerchantEndpoints
             CreatePaymentIntentRequest request,
             PorticoDbContext dbContext,
             IDashboardProjectionService projectionService,
+            IIntegrationOutboxService integrationOutboxService,
             IPorticoRealtimeNotifier realtimeNotifier,
             CancellationToken cancellationToken) =>
         {
@@ -314,6 +315,25 @@ internal static class MerchantEndpoints
             };
 
             dbContext.PaymentIntents.Add(paymentIntent);
+            integrationOutboxService.Enqueue(
+                PorticoIntegrationMessageTypes.PorticoPaymentIntentCreated,
+                paymentIntent.Id.ToString(),
+                paymentIntent.IntentReference,
+                new
+                {
+                    intentId = paymentIntent.Id,
+                    intentReference = paymentIntent.IntentReference,
+                    merchantId = paymentIntent.MerchantId,
+                    branchId = paymentIntent.BranchId,
+                    terminalId = paymentIntent.TerminalId,
+                    amountMinor = paymentIntent.AmountMinor,
+                    currency = paymentIntent.Currency,
+                    channel = paymentIntent.Channel.ToString(),
+                    status = paymentIntent.Status.ToString(),
+                    expiresAt = paymentIntent.ExpiresAt,
+                    occurredAt = paymentIntent.CreatedAt
+                },
+                paymentIntent.CreatedAt);
             await dbContext.SaveChangesAsync(cancellationToken);
 
             var summary = await projectionService.RefreshSummaryAsync(paymentIntent.MerchantId, cancellationToken);
@@ -357,6 +377,7 @@ internal static class MerchantEndpoints
             Guid intentId,
             PorticoDbContext dbContext,
             IDashboardProjectionService projectionService,
+            IIntegrationOutboxService integrationOutboxService,
             IPorticoRealtimeNotifier realtimeNotifier,
             CancellationToken cancellationToken) =>
         {
@@ -392,6 +413,22 @@ internal static class MerchantEndpoints
             intent.CancelledAt = DateTimeOffset.UtcNow;
             intent.UpdatedAt = DateTimeOffset.UtcNow;
 
+            integrationOutboxService.Enqueue(
+                PorticoIntegrationMessageTypes.PorticoPaymentIntentCancelled,
+                intent.Id.ToString(),
+                intent.IntentReference,
+                new
+                {
+                    intentId = intent.Id,
+                    intentReference = intent.IntentReference,
+                    merchantId = intent.MerchantId,
+                    branchId = intent.BranchId,
+                    terminalId = intent.TerminalId,
+                    status = intent.Status.ToString(),
+                    cancelledAt = intent.CancelledAt,
+                    occurredAt = intent.UpdatedAt
+                },
+                intent.UpdatedAt);
             await dbContext.SaveChangesAsync(cancellationToken);
 
             var summary = await projectionService.RefreshSummaryAsync(intent.MerchantId, cancellationToken);
