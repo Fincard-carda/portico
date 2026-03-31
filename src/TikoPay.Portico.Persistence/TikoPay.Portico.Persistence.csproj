@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.5">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\BuildingBlocks\TikoPay.Portico.BuildingBlocks\TikoPay.Portico.BuildingBlocks.csproj" />
+    <ProjectReference Include="..\Contracts\TikoPay.Portico.Contracts\TikoPay.Portico.Contracts.csproj" />
+    <ProjectReference Include="..\Modules\TikoPay.Portico.IdentityAccess\TikoPay.Portico.IdentityAccess.csproj" />
+    <ProjectReference Include="..\Modules\TikoPay.Portico.MerchantDirectory\TikoPay.Portico.MerchantDirectory.csproj" />
+    <ProjectReference Include="..\Modules\TikoPay.Portico.PaymentIntents\TikoPay.Portico.PaymentIntents.csproj" />
+    <ProjectReference Include="..\Modules\TikoPay.Portico.PaymentTracking\TikoPay.Portico.PaymentTracking.csproj" />
+    <ProjectReference Include="..\Modules\TikoPay.Portico.Reporting\TikoPay.Portico.Reporting.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,6 @@
+@TikoPay.Portico.Api_HostAddress = http://localhost:5083
+
+GET {{TikoPay.Portico.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

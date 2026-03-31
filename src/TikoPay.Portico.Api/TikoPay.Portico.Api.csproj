@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.5" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.5" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\BuildingBlocks\TikoPay.Portico.BuildingBlocks\TikoPay.Portico.BuildingBlocks.csproj" />
+    <ProjectReference Include="..\Contracts\TikoPay.Portico.Contracts\TikoPay.Portico.Contracts.csproj" />
+    <ProjectReference Include="..\Modules\TikoPay.Portico.IdentityAccess\TikoPay.Portico.IdentityAccess.csproj" />
+    <ProjectReference Include="..\Modules\TikoPay.Portico.MerchantDirectory\TikoPay.Portico.MerchantDirectory.csproj" />
+    <ProjectReference Include="..\Modules\TikoPay.Portico.PaymentIntents\TikoPay.Portico.PaymentIntents.csproj" />
+    <ProjectReference Include="..\Modules\TikoPay.Portico.PaymentTracking\TikoPay.Portico.PaymentTracking.csproj" />
+    <ProjectReference Include="..\Modules\TikoPay.Portico.Reporting\TikoPay.Portico.Reporting.csproj" />
+    <ProjectReference Include="..\Modules\TikoPay.Portico.Security\TikoPay.Portico.Security.csproj" />
+    <ProjectReference Include="..\TikoPay.Portico.Persistence\TikoPay.Portico.Persistence.csproj" />
+  </ItemGroup>
+
+</Project>

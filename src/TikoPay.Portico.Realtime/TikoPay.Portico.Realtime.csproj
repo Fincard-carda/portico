@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <ItemGroup>
+    <ProjectReference Include="..\BuildingBlocks\TikoPay.Portico.BuildingBlocks\TikoPay.Portico.BuildingBlocks.csproj" />
+    <ProjectReference Include="..\Contracts\TikoPay.Portico.Contracts\TikoPay.Portico.Contracts.csproj" />
+    <ProjectReference Include="..\Modules\TikoPay.Portico.Reporting\TikoPay.Portico.Reporting.csproj" />
+    <ProjectReference Include="..\Modules\TikoPay.Portico.IdentityAccess\TikoPay.Portico.IdentityAccess.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+</Project>
